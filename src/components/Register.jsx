@@ -33,7 +33,7 @@ const Register = () => {
   useEffect(() => {
     const fetchCsrfToken = async () => {
       try {
-        const response = await fetch("/api/csrf", { method: "PATCH" });
+        const response = await fetch("https://chatify-api.up.railway.app/csrf", { method: "PATCH" });
         if (!response.ok) {
           throw new Error("Kunde inte hämta CSRF-token");
         }
@@ -65,7 +65,7 @@ const Register = () => {
     };
 
     try {
-      const response = await fetch("/api/auth/register", {
+      const response = await fetch("https://chatify-api.up.railway.app/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -221,4 +221,5 @@ const Register = () => {
 };
 
 export default Register;
+
 

@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import "../App.css";
 import videoFile from "../assets/video.mp4";
 import logo from "../assets/logo-color.png";
-import { MdOutlineMailLock } from "react-icons/md";
+import { FaUser } from "react-icons/fa";
 import { RiLockPasswordFill } from "react-icons/ri";
 import { CiLogin } from "react-icons/ci";
 import { Link, useNavigate } from "react-router-dom";
 
 const Login = () => {
-  const [username, setUsername] = useState(''); 
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [csrfToken, setCsrfToken] = useState('');
@@ -18,14 +18,14 @@ const Login = () => {
   useEffect(() => {
     const fetchCsrfToken = async () => {
       try {
-       
 
-        const response = await fetch('/api/csrf', { method: 'PATCH' }); 
+
+        const response = await fetch('https://chatify-api.up.railway.app/csrf', { method: 'PATCH' });
         if (!response.ok) {
           throw new Error('Kunde inte hämta CSRF-token');
         }
         const data = await response.json();
-        setCsrfToken(data.csrfToken); 
+        setCsrfToken(data.csrfToken);
       } catch (error) {
         console.error('Fel vid hämtning av CSRF-token:', error);
         setError('Kunde inte hämta CSRF-token');
@@ -38,13 +38,13 @@ const Login = () => {
     e.preventDefault();
 
     const payload = {
-      username, 
+      username,
       password,
       csrfToken, // Skickar CSRF-token med payload
     };
 
     try {
-      const response = await fetch('/api/auth/token', {
+      const response = await fetch('https://chatify-api.up.railway.app/auth/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -59,11 +59,17 @@ const Login = () => {
 
       const data = await response.json();
 
-      
+
       // Spara token och användardata
       localStorage.setItem('token', data.token);
-      localStorage.setItem('userId', data.userId);
-      localStorage.setItem('username', username);
+
+      /*
+        sebbe: finns dessa tillgängliga verkligen? du behöver decoda JWTn.
+      */
+      // localStorage.setItem('userId', data.userId);
+      // localStorage.setItem('username', username);
+      const decodedJwt = JSON.parse(atob(data.token.split('.')[1]));
+      localStorage.setItem('decodedToken', JSON.stringify(decodedJwt));
 
       navigate('/chat'); // Navigera till chatten efter inloggning
     } catch (error) {
@@ -75,7 +81,7 @@ const Login = () => {
     <div className="loginPage flex">
       <div className="container flex">
         <div className="videoDiv">
-          <video src={videoFile} autoPlay muted loop></video> 
+          <video src={videoFile} autoPlay muted loop></video>
 
           <div className="textDiv">
             <p className="title">Connect, converse, create</p>
@@ -83,7 +89,7 @@ const Login = () => {
 
           <div className="footerDiv flex">
             <span className="text">Don't have an account?</span>
-            <Link to="/register"> 
+            <Link to="/register">
               <button className="btn">Sign up</button>
             </Link>
           </div>
@@ -99,16 +105,16 @@ const Login = () => {
             {error && <span className="showMessage">{error}</span>}
 
             <div className="inputDiv">
-              <label htmlFor="username">Username</label> 
+              <label htmlFor="username">Username</label>
               <div className="input flex">
-                <MdOutlineMailLock className="icon" />
-                <input 
-                  type="text" 
-                  id="username" 
-                  placeholder="Enter Username" 
+                <FaUser className="icon" />
+                <input
+                  type="text"
+                  id="username"
+                  placeholder="Enter Username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  autoComplete="username" 
+                  autoComplete="username"
                 />
               </div>
             </div>
@@ -117,18 +123,18 @@ const Login = () => {
               <label htmlFor="password">Password</label>
               <div className="input flex">
                 <RiLockPasswordFill className="icon" />
-                <input 
-                  type="password" 
-                  id="password" 
-                  placeholder="Enter Password" 
+                <input
+                  type="password"
+                  id="password"
+                  placeholder="Enter Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password" 
+                  autoComplete="current-password"
                 />
               </div>
             </div>
 
-            <button type="submit" className="btn flex"> 
+            <button type="submit" className="btn flex">
               <span>Login</span>
               <CiLogin className="icon" />
             </button>

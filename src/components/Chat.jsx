@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import '../components/Chat.css'
 
-import '../components/Css/Chat.css'; 
 
 const Chat = () => {
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
-    const [allUsers, setAllUsers] = useState([]);
+    const [setAllUsers] = useState([]);
+    const [decodedToken] = useState(JSON.parse(localStorage.getItem('decodedToken')));
     const [selectedConversationId, setSelectedConversationId] = useState(null); 
     const [conversations, setConversations] = useState([]); 
     const messagesEndRef = useRef(null); 
@@ -13,15 +14,10 @@ const Chat = () => {
     const loggedInUserId = Number(localStorage.getItem('userId')); // hämtar den inloggade användarens ID
   
     useEffect(() => {
-      getConversations(); // Hämtar konversationer när sidan laddas
-      getAllUsers();
+      // getConversations();
+      // getAllUsers();
+      getMessages();
     }, []);
-  
-    useEffect(() => {
-      if (selectedConversationId) {
-        getMessages(); // Hämtar meddelanden när en konversation väljs
-      }
-    }, [selectedConversationId]);
   
     // Hämta konversationer
     const getConversations = async () => {
@@ -50,8 +46,7 @@ const Chat = () => {
     const getMessages = async () => {
       try {
         const token = localStorage.getItem('token');
-        if (selectedConversationId) {
-          const response = await fetch(`/api/messages?conversationId=${selectedConversationId}`, {
+          const response = await fetch(`https://chatify-api.up.railway.app/messages`, {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -64,9 +59,6 @@ const Chat = () => {
   
           const data = await response.json();
           setMessages(data); // Spara hämtade meddelanden
-        } else {
-          setMessages([]); // Om ingen konversation är vald, töm meddelandelistan
-        }
       } catch (error) {
         console.error('Fel vid hämtning av meddelanden:', error);
       }
@@ -149,18 +141,18 @@ const Chat = () => {
     const isLoggedInUser = (userId) => userId === loggedInUserId;
   
     // Scrolla till botten när nya meddelanden kommer in
-    useEffect(() => {
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-      }
-    }, [sortedMessages]);
+    // useEffect(() => {
+    //   if (messagesEndRef.current) {
+    //     messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    //   }
+    // }, [sortedMessages]);
   
     return (
       <div className="chat-container">
         <div className="conversation-list">
           <h3>Välj en konversation</h3>
           <ul>
-            {conversations.map((conversation) => (
+            {conversations.length > 0 && conversations.map((conversation) => (
               <li
                 key={conversation.id}
                 onClick={() => setSelectedConversationId(conversation.id)}
@@ -173,18 +165,16 @@ const Chat = () => {
         </div>
   
         <div className="messages">
-          {sortedMessages.length > 0 ? (
-            sortedMessages.map((message) => {
-              const sender = allUsers.find((user) => user.userId === message.userId);
-  
+          {messages.length > 0 ? (
+            messages.map((message) => {
               return (
                 <div
                   key={message.id}
                   className={`message ${isLoggedInUser(message.userId) ? 'right' : 'left'}`}
                 >
-                  {!isLoggedInUser(message.userId) && sender && (
+                  {!isLoggedInUser(message.userId) && (
                     <div className="avatar">
-                      <img src={sender?.avatar || ''} alt="Avatar" />
+                      <img src={decodedToken?.avatar || ''} alt="Avatar" />
                     </div>
                   )}
                   <div className={`text ${isLoggedInUser(message.userId) ? 'right' : 'left'}`}>
