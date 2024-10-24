@@ -1,209 +1,269 @@
-import React, { useState, useEffect, useRef } from 'react';
-import '../components/Chat.css'
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import './Chat.css';
 
 
 const Chat = () => {
-    const [messages, setMessages] = useState([]);
-    const [newMessage, setNewMessage] = useState('');
-    const [setAllUsers] = useState([]);
-    const [decodedToken] = useState(JSON.parse(localStorage.getItem('decodedToken')));
-    const [selectedConversationId, setSelectedConversationId] = useState(null); 
-    const [conversations, setConversations] = useState([]); 
-    const messagesEndRef = useRef(null); 
-  
-    const loggedInUserId = Number(localStorage.getItem('userId')); // hämtar den inloggade användarens ID
-  
-    useEffect(() => {
-      // getConversations();
-      // getAllUsers();
-      getMessages();
-    }, []);
-  
-    // Hämta konversationer
-    const getConversations = async () => {
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [error, setError] = useState("");
+  const [activeConversation, setActiveConversation] = useState(localStorage.getItem("conversationId") || "");
+  const [username, setUsername] = useState(localStorage.getItem("username") || "");
+  const [avatar, setAvatar] = useState(localStorage.getItem("avatar") || "https://i.pravatar.cc/100?img=1");
+  const [token, setToken] = useState(localStorage.getItem("token") || "");
+  const userId = localStorage.getItem("userId");
+
+  const [fakeChat, setFakeChat] = useState([
+    {
+      text: "Hej, hur mår du?",
+      avatar: "https://i.pravatar.cc/100?img=1",
+      username: "Maryan",
+      userId: "fakeUser1",
+    },
+    {
+      text: "Jag mår bra, hur mår du?",
+      avatar: "https://i.pravatar.cc/100?img=9",
+      username: "Zaina",
+      userId: "fakeUser2",
+    },
+    {
+      text: "Jag mår också bra!",
+      avatar: "https://i.pravatar.cc/100?img=1",
+      username: "Maryan",
+      userId: "fakeUser1",
+    },
+  ]);
+
+  const navigate = useNavigate();
+
+  // // Visa alla meddelanden i konsolen vid uppdatering
+  useEffect(() => {
+    console.log("Alla meddelanden:", messages);
+  }, [messages]);
+
+
+ // Hämta meddelanden från localStorage om de är sparade där
+  useEffect(() => {
+    const storedMessages = localStorage.getItem(`messages_${userId}`);
+    if (storedMessages) {
+      setMessages(JSON.parse(storedMessages));
+    } else {
+      // Om inga meddelanden finns, visa de fejkade
+      setMessages(fakeChat);
+    }
+  }, [userId]);
+
+  // Hämta riktiga meddelanden baserat på användaren som är inloggad
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (!activeConversation) return;
+
       try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('/api/conversations', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-  
-        if (!response.ok) {
-          throw new Error('Kunde inte hämta konversationer');
-        }
-  
-        const data = await response.json();
-        console.log('Fetched conversations:', data);
-        setConversations(data); 
-      } catch (error) {
-        console.error('Fel vid hämtning av konversationer:', error);
-      }
-    };
-  
-    // Hämta meddelanden för vald konversation
-    const getMessages = async () => {
-      try {
-        const token = localStorage.getItem('token');
-          const response = await fetch(`https://chatify-api.up.railway.app/messages`, {
-            method: 'GET',
+        const response = await fetch(
+          `https://chatify-api.up.railway.app/messages?conversationId=${activeConversation}`,
+          {
+            method: "GET",
             headers: {
-              'Authorization': `Bearer ${token}`,
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
             },
-          });
-  
-          if (!response.ok) {
-            throw new Error('Kunde inte hämta meddelanden');
           }
-  
-          const data = await response.json();
-          setMessages(data); // Spara hämtade meddelanden
-      } catch (error) {
-        console.error('Fel vid hämtning av meddelanden:', error);
-      }
-    };
-  
-    // Hämta alla användare för att visa avatarer
-    const getAllUsers = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('/api/users', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-  
-        if (!response.ok) {
-          throw new Error('Kunde inte hämta användare');
-        }
-  
+        );
+
+        if (!response.ok) throw new Error("Kunde inte hämta meddelanden");
+
         const data = await response.json();
-        setAllUsers(data); // sparar användare
-      } catch (error) {
-        console.error('Fel vid hämtning av användare:', error);
-      }
-    };
-  
-    // Sortera meddelanden efter tid
-    const sortedMessages = [...messages].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-  
-    // Hantera skickandet av nytt meddelande
-    const handleSendMessage = async (e) => {
-      e.preventDefault();
-  
-      if (newMessage.trim() === '' || !selectedConversationId) return;
-  
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('/api/messages', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            text: newMessage,
-            conversationId: selectedConversationId,
-          }),
-        });
-  
-        if (!response.ok) {
-          throw new Error('Kunde inte skicka meddelandet');
+
+        // Filtrera meddelanden baserat på användarens ID
+        const userMessages = data.filter((msg) => msg.userId === userId);
+
+        if (userMessages.length > 0) {
+          // Om det finns riktiga meddelanden, visa dem
+          setMessages(userMessages);
+          localStorage.setItem(
+            `messages_${userId}`,
+            JSON.stringify(userMessages)
+          );
+        } else {
+          // Om inga riktiga meddelanden finns, visa de fejkade
+          setMessages(fakeChat);
         }
-  
-        setNewMessage(''); 
-        getMessages(); // Hämta meddelanden igen efter att ha skickat
       } catch (error) {
-        console.error('Fel vid skickandet av meddelande:', error);
+        setError("Kunde inte hämta meddelanden");
       }
     };
+    fetchMessages();
+  }, [activeConversation, token, userId]);
+
+
+ // Funktion för att skicka ett nytt meddelande
+ const handleSendMessage = async () => {
+  if (!newMessage.trim()) return;
+
   
-    // Radera ett meddelande
-    const handleDeleteMessage = async (msgId) => {
-      try {
-        const token = localStorage.getItem('token');
-        await fetch(`/api/messages/${msgId}`, {
-          method: 'DELETE',
+  const currentAvatar = localStorage.getItem("avatar");
+  const currentUsername = localStorage.getItem("username");
+
+
+  try {
+    const response = await fetch(
+      "https://chatify-api.up.railway.app/messages",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: newMessage,
+          conversationId: activeConversation,
+          avatar: currentAvatar,  
+          username: currentUsername,  
+        }),
+      }
+    );
+
+    if (!response.ok) throw new Error("Meddelandet kunde inte skickas");
+
+    const data = await response.json();
+    const newMsg = {
+      ...data.latestMessage,
+      username: currentUsername,  
+      avatar: currentAvatar, 
+      userId: userId,
+    };
+
+    setMessages((prevMessages) => {
+      const updatedMessages = [...prevMessages, newMsg];
+      localStorage.setItem(
+        `messages_${userId}`,
+        JSON.stringify(updatedMessages)
+      );
+      return updatedMessages;
+    });
+    setNewMessage("");
+  } catch (error) {
+    setError("Meddelandet kunde inte skickas");
+  }
+};
+
+
+  // Funktion för att radera ett meddelande
+  const handleDeleteMessage = async (messageId) => {
+    try {
+      const response = await fetch(
+        `https://chatify-api.up.railway.app/messages/${messageId}`,
+        {
+          method: "DELETE",
           headers: {
-            'Authorization': `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
           },
-        });
+        }
+      );
+
+      if (!response.ok) throw new Error("Meddelandet kunde inte raderas");
+
+      setMessages((prevMessages) => {
+        const updatedMessages = prevMessages.filter(
+          (message) => message.id !== messageId
+        );
+        localStorage.setItem(
+          `messages_${userId}`,
+          JSON.stringify(updatedMessages)
+        ); 
+        return updatedMessages;
+      });
+    } catch (error) {
+      setError("Meddelandet kunde inte raderas");
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("username");
+    localStorage.removeItem("avatar");
+    localStorage.removeItem(`messages_${userId}`); // Rensa meddelanden för användaren
+    navigate("/login");
+  };
+
+  // Stilar för att centrera chattem
+  const chatStyle = {
+    maxWidth: "600px",
+    margin: "0 auto",
+    padding: "20px",
+  };
+
+  return (
+    <div className="chat-container">
+      <button className="btn btn-danger mb-3 align-self-end" onClick={handleLogout}>
+        Logga ut
+      </button>
   
-        setMessages(messages.filter((message) => message.id !== msgId)); // Filtrera bort det raderade meddelandet
-      } catch (error) {
-        console.error('Fel vid raderandet av meddelande:', error);
-      }
-    };
-  
-    // Kontrollerar om användaren är den inloggade
-    const isLoggedInUser = (userId) => userId === loggedInUserId;
-  
-    // Scrolla till botten när nya meddelanden kommer in
-    // useEffect(() => {
-    //   if (messagesEndRef.current) {
-    //     messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    //   }
-    // }, [sortedMessages]);
-  
-    return (
-      <div className="chat-container">
-        <div className="conversation-list">
-          <h3>Välj en konversation</h3>
-          <ul>
-            {conversations.length > 0 && conversations.map((conversation) => (
-              <li
-                key={conversation.id}
-                onClick={() => setSelectedConversationId(conversation.id)}
-                className={selectedConversationId === conversation.id ? 'selected' : ''}
+      <div className="chat-content">
+        <h2 className="mb-4">Chatt</h2>
+        <div className="messages-container">
+          {messages.length === 0 ? (
+            fakeChat.map((message, index) => (
+              <div
+                key={index}
+                className={`message-container ${message.userId === userId ? 'self' : 'other'}`}
               >
-                {conversation.name}
-              </li>
-            ))}
-          </ul>
-        </div>
-  
-        <div className="messages">
-          {messages.length > 0 ? (
-            messages.map((message) => {
-              return (
-                <div
-                  key={message.id}
-                  className={`message ${isLoggedInUser(message.userId) ? 'right' : 'left'}`}
-                >
-                  {!isLoggedInUser(message.userId) && (
-                    <div className="avatar">
-                      <img src={decodedToken?.avatar || ''} alt="Avatar" />
-                    </div>
-                  )}
-                  <div className={`text ${isLoggedInUser(message.userId) ? 'right' : 'left'}`}>
-                    {message.text}
-  
-                    {isLoggedInUser(message.userId) && (
-                      <button onClick={() => handleDeleteMessage(message.id)}>Radera</button>
+                <div className={`message ${message.userId === userId ? 'self' : 'other'}`}>
+                  <img
+                    className="message-avatar"
+                    src={message.avatar}
+                    alt="avatar"
+                  />
+                  <div>
+                    <div className="fw-bold">{message.username}</div>
+                    <p className="mb-0">{message.text}</p>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            messages.map((message, index) => (
+              <div
+                key={index}
+                className={`message-container ${message.userId === userId ? 'self' : 'other'}`}
+              >
+                <div className={`message ${message.userId === userId ? 'self' : 'other'}`}>
+                  <img
+                    className="message-avatar"
+                    src={message.avatar || "https://i.pravatar.cc/100"}
+                    alt="avatar"
+                  />
+                  <div>
+                    <div className="fw-bold">{message.username}</div>
+                    <p className="mb-0">{message.text}</p>
+                    {message.userId === userId && (
+                      <button onClick={() => handleDeleteMessage(message.id)} className="btn btn-link text-danger ms-2">
+                        Delete
+                      </button>
                     )}
                   </div>
                 </div>
-              );
-            })
-          ) : (
-            <p>Inga meddelanden att visa</p>
+              </div>
+            ))
           )}
-          <div ref={messagesEndRef} />
         </div>
   
-        <div className="message-input">
+        <div className="message-input-container">
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Skriv ditt meddelande..."
+            placeholder="Skriv ett meddelande..."
+            className="message-input"
           />
-          <button onClick={handleSendMessage}>Skicka</button>
+          <button onClick={handleSendMessage} className="btn btn-success">
+            Send
+          </button>
         </div>
       </div>
-    );
-  };
-  
-  export default Chat;
+    </div>
+  );  
+}
+
+export default Chat;
